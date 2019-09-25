@@ -47,39 +47,26 @@ axios
     console.log(res.data);
     return cheerio.load(res.data);
   })
-  .then(async $ => {
+  .then($ => {
     const imgPathArr = getCurrPageImgPath($, "#masonry img", "data-original");
-    const imgCount = imgPathArr.length;
-    // 组装ajax请求
-    let successTotal = 0;
-    const imgDataArr = [];
 
     console.log(`开始下载：`);
-    // 这里待会修改为每次请求从数组中取出来 然后失败的再次加入数组末尾 使其可以重试 但要注意最后一个元素的情况
-    for (let i = 0; i < imgPathArr.length; i++) {
-      try {
-        const res = await axios.get(imgPathArr[i]);
-        imgDataArr.push(res);
-        successTotal++;
-        console.log(`进度：${parseInt((successTotal / imgCount) * 100)}%`);
-      } catch (err) {
-        console.log("err in for Loop：", err.code);
-      }
-    }
-    console.log("图片抓取全部完成，等待保存至磁盘");
+    const promises = [];
+    imgPathArr.map(url => {
+      promises.push(axios.get(url));
+    });
 
-    return {
-      total: imgCount,
-      successTotal: successTotal,
-      imgDataArr: imgDataArr
-    };
+    return Promise.all(promises).then(res => {
+      return {
+        resArr: res,
+        totalCount: imgPathArr.length
+      };
+    });
   })
   .then(res => {
-    // 这里需要得到上一步的文件流 然后使用fs写入到指定文件夹
-    console.log(`共计：${res.total}张，成功下载${res.successTotal}`);
-
+    const total = res.resArr.length;
     let count = 0;
-    res.imgDataArr.forEach(item => {
+    res.resArr.forEach(item => {
       getFilename(item.config.url);
       let img = new Readable();
       img.push(item.data);
@@ -88,12 +75,12 @@ axios
         .pipe(fs.createWriteStream(getFilename(item.config.url)))
         .on("close", () => {
           ++count;
-          if (count === res.successTotal) {
-            console.log("任务完成");
+          if (count === res.totalCount) {
+            console.log(`下载完成，共计：${res.totalCount}张。`);
           }
         });
     });
   })
   .catch(err => {
-    console.log("err in 98 line", err.code);
+    console.log("err", err.code);
   });
