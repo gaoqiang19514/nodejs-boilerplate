@@ -1,57 +1,14 @@
 const fs = require("fs");
 const path = require("path");
-const cheerio = require("cheerio");
-
-const axios = require("axios");
-var Readable = require("stream").Readable;
 const uuid = require("uuid");
+const cheerio = require("cheerio");
+const Readable = require("stream").Readable;
 
-const DIR = "./download";
-// const url = "https://www.yimg.net/sex/13142.html"; // 未下载
-const url = "https://www.yimg.net/sex/13142.html";
+const axios = require("./axios");
 
-//在main.js设置全局的请求次数，请求的间隙
-axios.defaults.retry = 10;
-axios.defaults.retryDelay = 500;
-
-axios.interceptors.response.use(undefined, function axiosRetryInterceptor(err) {
-  var config = err.config;
-  // If config does not exist or the retry option is not set, reject
-  if (!config || !config.retry) return Promise.reject(err);
-
-  // Set the variable for keeping track of the retry count
-  config.__retryCount = config.__retryCount || 0;
-
-  // Check if we've maxed out the total number of retries
-  if (config.__retryCount >= config.retry) {
-    // Reject with the error
-    return Promise.reject(err);
-  }
-
-  // Increase the retry count
-  config.__retryCount += 1;
-
-  // Create new promise to handle exponential backoff
-  var backoff = new Promise(function(resolve) {
-    setTimeout(function() {
-      resolve();
-    }, config.retryDelay || 1);
-  });
-
-  // Return the promise in which recalls axios to retry the request
-  return backoff.then(function() {
-    return axios(config);
-  });
-});
-
-var instance = axios.create({
-  timeout: 10000,
-  responseType: "arraybuffer"
-});
-
-function processPath(src) {
-  return src;
-}
+const DIR = "./images";
+const url = "https://www.yimg.net/sex/13272.html"; // 壁纸 getCurrPageImgPath($, '#masonry img', "data-original");
+// const url = "http://www.mlito.com/photo/girl/g_model/157573.html"; // 美女 getCurrPageImgPath($, '.alignnone', "src");
 
 function getFilename(url) {
   const filename = url.split("/");
@@ -59,29 +16,19 @@ function getFilename(url) {
   return path.join(DIR, getShortUUID() + filename[lastIndex]);
 }
 
-function saveImage(url, filename) {
-  console.log("开始保存图片至：" + filename);
-  return new Promise(resolve => {
-    axios(url)
-      .pipe(fs.createWriteStream(filename))
-      .on("close", () => {
-        resolve();
-      });
-  });
-}
-
 /**
  * 现将图片链接收到到数组中
  * @param {Cheerio Objecjt} $
  * @param {String} selector
+ * @param {String} attr
  */
-function getCurrPageImgPath($, selector) {
-  if (!selector) {
+function getCurrPageImgPath($, selector, attr) {
+  if (!attr) {
     return null;
   }
   const imgPathArr = [];
-  $("#masonry .post-item-img").each((index, item) => {
-    var src = processPath($(item).attr(selector));
+  $(selector).each((index, item) => {
+    var src = $(item).attr(attr);
     imgPathArr.push(src);
   });
   return imgPathArr;
@@ -93,28 +40,30 @@ function getShortUUID() {
 }
 
 console.log("程序开始");
-
-instance
+axios
   .get(url)
   .then(res => {
     console.log("获取网页");
+    console.log(res.data);
     return cheerio.load(res.data);
   })
   .then(async $ => {
-    const imgPathArr = getCurrPageImgPath($, "data-original");
+    const imgPathArr = getCurrPageImgPath($, "#masonry img", "data-original");
     const imgCount = imgPathArr.length;
     // 组装ajax请求
     let successTotal = 0;
     const imgDataArr = [];
+
+    console.log(`开始下载：`);
+    // 这里待会修改为每次请求从数组中取出来 然后失败的再次加入数组末尾 使其可以重试 但要注意最后一个元素的情况
     for (let i = 0; i < imgPathArr.length; i++) {
-      console.log(`开始下载：${imgPathArr[i]}`);
       try {
-        const res = await instance.get(imgPathArr[i]);
+        const res = await axios.get(imgPathArr[i]);
         imgDataArr.push(res);
         successTotal++;
-        console.log("下载完成。");
+        console.log(`进度：${parseInt((successTotal / imgCount) * 100)}%`);
       } catch (err) {
-        console.log("err：", err.code);
+        console.log("err in for Loop：", err.code);
       }
     }
     console.log("图片抓取全部完成，等待保存至磁盘");
@@ -138,10 +87,13 @@ instance
       img
         .pipe(fs.createWriteStream(getFilename(item.config.url)))
         .on("close", () => {
-          ++count
+          ++count;
           if (count === res.successTotal) {
             console.log("任务完成");
           }
         });
     });
+  })
+  .catch(err => {
+    console.log("err in 98 line", err.code);
   });
