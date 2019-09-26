@@ -48,7 +48,6 @@ function init(url, selector, attr) {
     .get(url)
     .then(res => {
       console.log("获取网页");
-      console.log(res.data);
       return cheerio.load(res.data);
     })
     .then($ => {
@@ -95,5 +94,9 @@ fsExtra.emptyDir("./images", err => {
   console.log("程序开始");
   init("https://www.yimg.net/sex/13018.html", "#masonry img", "data-original");
 });
-// const url = "https://www.yimg.net/sex/13251.html"; // 壁纸 getCurrPageImgPath($, '#masonry img', "data-original");
-// const url = "http://www.mlito.com/photo/girl/g_model/194916.html"; // 美女 getCurrPageImgPath($, '.j_contl_main .alignnone', "src");
+
+// const url = "https://www.yimg.net/sex/13251.html"; 
+// 壁纸 getCurrPageImgPath($, '#masonry img', "data-original");
+
+// const url = "http://www.mlito.com/photo/girl/g_model/194916.html";
+// 美女 getCurrPageImgPath($, '.j_contl_main .alignnone', "src");
