@@ -45,6 +45,15 @@ function getDir(url) {
 }
 
 /**
+ * 获取目录 针对一页只有一张图的 采用图片的路径进行md5 丢弃xx.html部分
+ */
+function getDirByMultiPage(url) {
+  const lastIndex = url.lastIndexOf('\/')
+  const prefix = url.substring(0, lastIndex)
+  return path.join(DOWNLOAD_PATH, md5(prefix));
+}
+
+/**
  * 现将图片链接收到到数组中
  * @param {Cheerio Objecjt} $
  * @param {String} selector
@@ -71,6 +80,17 @@ function createStream(data) {
   stream.push(data);
   stream.push(null);
   return stream;
+}
+
+/**
+ * 指定url为当前套图
+ * @param {Sting} pageUrl 
+ */
+function isCurrPart(pageUrl) {
+  if (pageUrl.indexOf('.html') !== -1) {
+    return true
+  }
+  return false
 }
 
 /**
@@ -126,6 +146,57 @@ function init(pageUrl, selector, attr) {
   });
 }
 
+function initMultiPage(pageUrl, selector, attr, getNextPageUrl, isLastPage) {
+  console.log(pageUrl)
+  axios
+    .get(pageUrl)
+    .then(res => {
+      console.log("成功获取网页内容。");
+      return cheerio.load(res.data);
+    })
+    .then($ => {
+      // 获取目录
+      const dir = getDirByMultiPage(pageUrl);
+      //  获取上文页面中的图片地址列表
+      const [imgPath] = getCurrPageImgPath($, selector, attr);
+
+      console.log(`开始下载：`);
+      fsExtra.ensureDir(dir).then(() => {
+        const filepath = getFilePath(dir, imgPath);
+
+        // 对图片发起请求
+        axios.get(imgPath).then(res => {
+          // 将字符串转换成文件流
+          const file = createStream(res.data);
+          file.pipe(fs.createWriteStream(filepath)).on("close", () => {
+            console.log(`下载完成。`);
+
+            // 下一步
+            // 1. 后去下一页的地址
+            // 2. 使用下一页的地址调用initMultiPage
+            // 3. 递归调用 直到最后一页（怎么判断当前是最后一页呢？）最后一个页面的图片地址会变成一个目录路径
+
+            const nextPageUrl = getNextPageUrl($, pageUrl)
+            if (isLastPage(nextPageUrl)) {
+              initMultiPage(
+                nextPageUrl,
+                selector,
+                attr,
+                getNextPageUrl,
+                isLastPage
+              );
+            } else {
+              console.log('没有更多了')
+            }
+          });
+        });
+      });
+    })
+    .catch(err => {
+      console.log('err', err)
+    })
+}
+
 console.log("程序开始");
 
 // yimg
@@ -138,28 +209,46 @@ console.log("程序开始");
 //   "src"
 // );
 
-const tasks = [
-  "http://www.7160.com/meinv/34174/index.html",
-];
 
-// http://www.7160.com
-// 该网站是每页一张图片的
-// 地址：http://www.7160.com/meinv/34174/index.html
-// 选择器：.picsbox
+// 下面是每页一张图片的网站
 
-const start = async tasks => {
-  let imgTotalCount = 0
-  
-  for (let i = 0; i < tasks.length; i++) {
-    try {
-      const res = await init(tasks[i], ".picsbox img", "src");
-      imgTotalCount = imgTotalCount + res
-    } catch (err) {
-      console.log("err", err);
+// 地址：http://www.bobohdy.com/play/144026/0/0.html
+// 选择器：.playpic img
+const startUrl = 'http://www.bobohdy.com/play/101022/0/0.html'
+initMultiPage(
+  startUrl,
+  ".playpic img",
+  "src",
+  ($, currentUrl) => {
+    const lastIndex = currentUrl.lastIndexOf('/play')
+    const prefix = currentUrl.substring(0, lastIndex)
+    const nextPageUrl = `${prefix}${$('.next-btn').attr('href')}`
+    return nextPageUrl
+  },
+  (pageUrl) => {
+    if (pageUrl === startUrl) {
+      return false
     }
+    return true
   }
+);
 
-  console.log(`批量任务完成，共计：${imgTotalCount}张，${tasks.length}个任务`)
-};
-
-start(tasks);
+// 地址：http://www.7160.com/meinv/34174/index.html
+// 选择器：.picsbox img
+// initMultiPage(
+//   "https://www.7160.com/rentiyishu/62386/index.html",
+//   ".picsbox img",
+//   "src",
+//   ($, currentUrl) => {
+//     const lastIndex = currentUrl.lastIndexOf('\/')
+//     const prefix = currentUrl.substring(0, lastIndex)
+//     console.log(`${prefix}\/${$('.picsbox a').attr('href')}`)
+//     return `${prefix}\/${$('.picsbox a').attr('href')}`
+//   },
+//   (pageUrl) => {
+//     if (pageUrl.indexOf('.html') !== -1) {
+//       return true
+//     }
+//     return false
+//   }
+// );
