@@ -1,4 +1,5 @@
 const fs = require("fs");
+const md5 = require("md5");
 const path = require("path");
 const cheerio = require("cheerio");
 const fsExtra = require("fs-extra");
@@ -37,23 +38,10 @@ function getFilename(url) {
 }
 
 /**
- * 将字符字符串转为数字字符串
- * @param {String} str
- */
-function str2Num(str) {
-  let result = 0;
-  for (let i = 0; i < str.length; i++) {
-    let code = str[i].charCodeAt();
-    result = result + code;
-  }
-  return String(result);
-}
-
-/**
  * 获取目录
  */
 function getDir(url) {
-  return path.join(DOWNLOAD_PATH, str2Num(url));
+  return path.join(DOWNLOAD_PATH, md5(url));
 }
 
 /**
@@ -113,6 +101,7 @@ function init(pageUrl, selector, attr) {
         fsExtra.ensureDir(dir).then(() => {
           const filepath = getFilePath(dir, imgUrl);
           const filename = getFilename(imgUrl);
+
           // 对图片发起请求
           axios.get(imgUrl).then(res => {
             // 将字符串转换成文件流
@@ -138,10 +127,13 @@ function init(pageUrl, selector, attr) {
 }
 
 console.log("程序开始");
+
+// yimg
 // init("https://www.yimg.net/sex/13178.html", "#masonry img", "data-original");
 
+// mlito
 init(
-  "http://www.mlito.com/photo/girl/g_model/194916.html",
+  "http://www.mlito.com/photo/girl/g_model/148974.html",
   ".j_contl_main .alignnone",
   "src"
 );
