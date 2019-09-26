@@ -9,7 +9,7 @@ const instance = axios.create({
 instance.interceptors.response.use(undefined, function(error) {
   const { config, code } = error;
   if (code === "ECONNABORTED") {
-    console.warn(`请求超时，稍后重试 ${config.url}`);
+    console.warn(`请求超时，等待重试 ${config.url}`);
     return new Promise(resolve => {
       setTimeout(async () => {
         resolve(await instance.request(config));
