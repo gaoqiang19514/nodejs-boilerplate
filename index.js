@@ -80,50 +80,50 @@ function createStream(data) {
  * @param {String} attr
  */
 function init(pageUrl, selector, attr) {
-  axios
-    .get(pageUrl)
-    .then(res => {
-      console.log("成功获取网页内容。");
-      return cheerio.load(res.data);
-    })
-    .then($ => {
-      let count = 0;
-      // 获取目录
-      const dir = getDir(pageUrl);
-      //  获取上文页面中的图片地址列表
-      const imgPathArr = getCurrPageImgPath($, selector, attr);
-      //  当前页面请求数量
-      const imgTotalCount = imgPathArr.length;
+  return new Promise(resolve => {
+    axios
+      .get(pageUrl)
+      .then(res => {
+        console.log("成功获取网页内容。");
+        return cheerio.load(res.data);
+      })
+      .then($ => {
+        let count = 0;
+        // 获取目录
+        const dir = getDir(pageUrl);
+        //  获取上文页面中的图片地址列表
+        const imgPathArr = getCurrPageImgPath($, selector, attr);
+        //  当前页面请求数量
+        const imgTotalCount = imgPathArr.length;
 
-      console.log(`开始下载：`);
-      imgPathArr.map(imgUrl => {
-        // 创建文件夹
-        fsExtra.ensureDir(dir).then(() => {
-          const filepath = getFilePath(dir, imgUrl);
-          const filename = getFilename(imgUrl);
+        console.log(`开始下载：`);
+        imgPathArr.map(imgUrl => {
+          // 创建文件夹
+          fsExtra.ensureDir(dir).then(() => {
+            const filepath = getFilePath(dir, imgUrl);
+            const filename = getFilename(imgUrl);
 
-          // 对图片发起请求
-          axios.get(imgUrl).then(res => {
-            // 将字符串转换成文件流
-            const file = createStream(res.data);
-            file.pipe(fs.createWriteStream(filepath)).on("close", () => {
-              count = count + 1;
-              console.log(
-                `下载完成：${filename}, 进度：${parseInt(
-                  (count / imgTotalCount) * 100
-                )}%`
-              );
-              if (count === imgTotalCount) {
-                console.log(`下载完成，共计：${imgTotalCount}张。`);
-              }
+            // 对图片发起请求
+            axios.get(imgUrl).then(res => {
+              // 将字符串转换成文件流
+              const file = createStream(res.data);
+              file.pipe(fs.createWriteStream(filepath)).on("close", () => {
+                count = count + 1;
+                console.log(
+                  `下载完成：${filename}, 进度：${parseInt(
+                    (count / imgTotalCount) * 100
+                  )}%`
+                );
+                if (count === imgTotalCount) {
+                  console.log(`下载完成，共计：${imgTotalCount}张。`);
+                  resolve(imgTotalCount);
+                }
+              });
             });
           });
         });
       });
-    })
-    .catch(err => {
-      console.log("err", err);
-    });
+  });
 }
 
 console.log("程序开始");
@@ -132,8 +132,34 @@ console.log("程序开始");
 // init("https://www.yimg.net/sex/13178.html", "#masonry img", "data-original");
 
 // mlito
-init(
-  "http://www.mlito.com/photo/girl/g_model/148974.html",
-  ".j_contl_main .alignnone",
-  "src"
-);
+// init(
+//   "http://www.mlito.com/photo/girl/g_model/148974.html",
+//   ".j_contl_main .alignnone",
+//   "src"
+// );
+
+const tasks = [
+  "http://www.7160.com/meinv/34174/index.html",
+];
+
+// http://www.7160.com
+// 该网站是每页一张图片的
+// 地址：http://www.7160.com/meinv/34174/index.html
+// 选择器：.picsbox
+
+const start = async tasks => {
+  let imgTotalCount = 0
+  
+  for (let i = 0; i < tasks.length; i++) {
+    try {
+      const res = await init(tasks[i], ".picsbox img", "src");
+      imgTotalCount = imgTotalCount + res
+    } catch (err) {
+      console.log("err", err);
+    }
+  }
+
+  console.log(`批量任务完成，共计：${imgTotalCount}张，${tasks.length}个任务`)
+};
+
+start(tasks);
