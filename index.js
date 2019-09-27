@@ -48,7 +48,7 @@ function getDir(url) {
  * 获取目录 针对一页只有一张图的 采用图片的路径进行md5 丢弃xx.html部分
  */
 function getDirByMultiPage(url) {
-  const lastIndex = url.lastIndexOf('\/')
+  const lastIndex = url.lastIndexOf('\.html')
   const prefix = url.substring(0, lastIndex)
   return path.join(DOWNLOAD_PATH, md5(prefix));
 }
@@ -155,42 +155,56 @@ function initMultiPage(pageUrl, selector, attr, getNextPageUrl, isLastPage) {
       return cheerio.load(res.data);
     })
     .then($ => {
+      let count = 0;
       // 获取目录
       const dir = getDirByMultiPage(pageUrl);
       //  获取上文页面中的图片地址列表
-      const [imgPath] = getCurrPageImgPath($, selector, attr);
-
+      const imgPathArr = getCurrPageImgPath($, selector, attr);
+      //  当前页面请求数量
+      const imgTotalCount = imgPathArr.length;
       console.log(`开始下载：`);
-      fsExtra.ensureDir(dir).then(() => {
-        const filepath = getFilePath(dir, imgPath);
 
-        // 对图片发起请求
-        axios.get(imgPath).then(res => {
-          // 将字符串转换成文件流
-          const file = createStream(res.data);
-          file.pipe(fs.createWriteStream(filepath)).on("close", () => {
-            console.log(`下载完成。`);
+      imgPathArr.map(imgUrl => {
+        fsExtra.ensureDir(dir).then(() => {
+          const filepath = getFilePath(dir, imgUrl);
+          const filename = getFilename(imgUrl);
 
-            // 下一步
-            // 1. 后去下一页的地址
-            // 2. 使用下一页的地址调用initMultiPage
-            // 3. 递归调用 直到最后一页（怎么判断当前是最后一页呢？）最后一个页面的图片地址会变成一个目录路径
-
-            const nextPageUrl = getNextPageUrl($, pageUrl)
-            if (isLastPage(nextPageUrl)) {
-              initMultiPage(
-                nextPageUrl,
-                selector,
-                attr,
-                getNextPageUrl,
-                isLastPage
+          // 对图片发起请求
+          axios.get(imgUrl).then(res => {
+            // 将字符串转换成文件流
+            const file = createStream(res.data);
+            file.pipe(fs.createWriteStream(filepath)).on("close", () => {
+              console.log(`下载完成。`);
+              count = count + 1;
+              console.log(
+                `下载完成：${filename}, 进度：${parseInt(
+                  (count / imgTotalCount) * 100
+                )}%`
               );
-            } else {
-              console.log('没有更多了')
-            }
+              if (count === imgTotalCount) {
+                console.log(`下载完成，共计：${imgTotalCount}张。`);
+                nextPage()
+              }
+            });
           });
         });
-      });
+      })
+
+      function nextPage() {
+        // 当前页面下载完成后 再请求下一页
+        const nextPageUrl = getNextPageUrl($, pageUrl)
+        if (isLastPage(nextPageUrl)) {
+          initMultiPage(
+            nextPageUrl,
+            selector,
+            attr,
+            getNextPageUrl,
+            isLastPage
+          );
+        } else {
+          console.log('没有更多了')
+        } 
+      }
     })
     .catch(err => {
       console.log('err', err)
@@ -214,19 +228,21 @@ console.log("程序开始");
 
 // 地址：http://www.bobohdy.com/play/144026/0/0.html
 // 选择器：.playpic img
-const startUrl = 'http://www.bobohdy.com/play/101022/0/0.html'
+const startUrl = 'https://www.baituji.com/detail/1738.html'
+
 initMultiPage(
   startUrl,
-  ".playpic img",
+  "#show-area-height img",
   "src",
   ($, currentUrl) => {
-    const lastIndex = currentUrl.lastIndexOf('/play')
+    const lastIndex = currentUrl.lastIndexOf('/detail')
     const prefix = currentUrl.substring(0, lastIndex)
-    const nextPageUrl = `${prefix}${$('.next-btn').attr('href')}`
+    const nextPageUrl = `${prefix}${$('.pagination').children().last().children().eq(0).attr('href')}`
     return nextPageUrl
   },
+  // 结束条件
   (pageUrl) => {
-    if (pageUrl === startUrl) {
+    if (pageUrl.indexOf('undefined') !== -1) {
       return false
     }
     return true

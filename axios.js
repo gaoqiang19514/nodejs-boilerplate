@@ -5,7 +5,7 @@ axios.defaults.headers.common['retryDelay'] = 1000
 axios.defaults.headers.common['retryCount'] = 0
 
 const instance = axios.create({
-  timeout: 10000, // 超时时间
+  timeout: 20000, // 超时时间
   responseType: "arraybuffer"
 });
 
