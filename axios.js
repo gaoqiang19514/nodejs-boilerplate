@@ -1,15 +1,29 @@
 const axios = require("axios");
+const https = require("https");
 
-axios.defaults.headers.common['retry'] = 10
-axios.defaults.headers.common['retryDelay'] = 1000
-axios.defaults.headers.common['retryCount'] = 0
+axios.defaults.headers.common["retry"] = 10;
+axios.defaults.headers.common["retryDelay"] = 1000;
+axios.defaults.headers.common["retryCount"] = 0;
 
 const instance = axios.create({
   timeout: 10000, // 超时时间
-  responseType: "arraybuffer"
+  responseType: "arraybuffer",
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false,
+    requestCert: true,
+    keepAlive: true
+  })
 });
 
-// 添加响应拦截器 针对异常情况
+instance.interceptors.request.use(
+  function(config) {
+    return config;
+  },
+  function(error) {
+    return Promise.reject(error);
+  }
+);
+
 instance.interceptors.response.use(undefined, function axiosRetryInterceptor(
   error
 ) {
