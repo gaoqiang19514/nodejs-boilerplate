@@ -45,7 +45,11 @@ function getFilename(url) {
 function getDirByMultiPage(url, mark) {
   const lastIndex = url.lastIndexOf(mark);
   const prefix = url.substring(0, lastIndex);
-  return path.join(DOWNLOAD_PATH, md5(prefix));
+  const lastSecondIndex = prefix.lastIndexOf(mark)
+
+  const prefix2 = prefix.substring(0, lastSecondIndex);
+
+  return path.join(DOWNLOAD_PATH, md5(prefix2));
 }
 
 /**
@@ -135,24 +139,23 @@ function initMultiPage(options) {
 }
 
 console.log("程序启动");
-const startUrl = "https://www.baituji.com/detail/3237.html";
+const startUrl = "http://www.ligui.org/xiaoyu/376015/1/";
 initMultiPage({
   pageUrl: startUrl,
-  selector: "#show-area-height img",
+  selector: ".article-content img",
   attr: "src",
-  mark: ".html",
+  mark: "/",
   // 获取下一页地址
   getNextPageUrl: ($, currentUrl) => {
     let href = "";
     const lastIndex = currentUrl.lastIndexOf("/detail");
     const prefix = currentUrl.substring(0, lastIndex);
 
-    const href = $(".pagination")
-      .children()
-      .last()
-      .children()
-      .eq(0)
-      .attr("href");
+    href = $(".article-paging").find('span').next().attr("href");
+
+    if (!href) {
+      return null
+    }
 
     if (href.indexOf("http") !== -1) {
       href = prefix + href;
@@ -162,7 +165,7 @@ initMultiPage({
   // 结束条件 判断是否还有页面需要请求 hasNextPage
   hasNextPage: pageUrl => {
     // 如果地址包含undefind 说明是最没有下一页了
-    if (pageUrl.indexOf("undefined") !== -1) {
+    if (!pageUrl ||pageUrl.indexOf("undefined") !== -1) {
       return false;
     }
     return true;
