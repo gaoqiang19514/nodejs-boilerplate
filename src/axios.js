@@ -1,8 +1,8 @@
-const axios = require("axios");
+import axios from "axios";
 
-axios.defaults.headers.common['retry'] = 10
-axios.defaults.headers.common['retryDelay'] = 1000
-axios.defaults.headers.common['retryCount'] = 0
+axios.defaults.headers.common["retry"] = 10;
+axios.defaults.headers.common["retryDelay"] = 1000;
+axios.defaults.headers.common["retryCount"] = 0;
 
 const instance = axios.create({
   timeout: 20000, // 超时时间
@@ -37,4 +37,4 @@ instance.interceptors.response.use(undefined, function axiosRetryInterceptor(
   });
 });
 
-module.exports = instance;
+export default instance;

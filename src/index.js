@@ -1,88 +1,14 @@
-const fs = require("fs");
-const md5 = require("md5");
-const path = require("path");
-const cheerio = require("cheerio");
-const fsExtra = require("fs-extra");
-const Readable = require("stream").Readable;
+import fs from "fs";
+import cheerio from "cheerio";
+import fsExtra from "fs-extra";
 
-const axios = require("./axios");
-
-// 下载的目录
-const DOWNLOAD_PATH = "./images";
+import axios from "./axios";
+import { getFilename, getFilePath, getDirByMultiPage, getCurrPageImgPath, createStream } from './util'
 
 /**
- * 获取文件路径
- * @param {String} url
+ * 开始
+ * @param {Object} options 
  */
-function getFilePath(dir, url) {
-  if (!url) {
-    return null;
-  }
-  const temp = url.split("/");
-  const len = temp.length;
-  const filename = temp[len - 1];
-  return path.join(dir, filename);
-}
-
-/**
- * 获取文件名
- * @param {String} url
- */
-function getFilename(url) {
-  if (!url) {
-    return null;
-  }
-  const temp = url.split("/");
-  const filename = temp[temp.length - 1];
-  return filename;
-}
-
-/**
- * 获取目录 针对一页只有一张图的 采用图片的路径进行md5 丢弃mark部分
- * @param {String} url
- * @param {String} mark
- */
-function getDirByMultiPage(url, mark, $) {
-  return path.join(DOWNLOAD_PATH, $('#title h1').text());
-  const lastIndex = url.lastIndexOf(mark);
-  const prefix = url.substring(0, lastIndex);
-  // const lastSecondIndex = prefix.lastIndexOf(mark);
-
-  // const prefix2 = prefix.substring(0, lastSecondIndex);
-
-  return path.join(DOWNLOAD_PATH, md5(prefix));
-}
-
-/**
- * 现将图片链接收到到数组中
- * @param {Cheerio Objecjt} $
- * @param {String} selector
- * @param {String} attr
- */
-function getCurrPageImgPath($, selector, attr) {
-  if (!attr) {
-    return null;
-  }
-  const imgPathArr = [];
-  $(selector).each((index, item) => {
-    var src = $(item).attr(attr);
-    imgPathArr.push(src);
-  });
-  return imgPathArr;
-}
-
-/**
- * 创建文件流
- * @param {String} data
- */
-function createStream(data) {
-  const stream = new Readable();
-  stream.push(data);
-  stream.push(null);
-  return stream;
-}
-
-// 初始化
 function initMultiPage(options) {
   console.log("开始处理页面地址：", options.pageUrl);
   return new Promise(resolve => {
@@ -125,13 +51,15 @@ function initMultiPage(options) {
                     options.pageUrl
                   );
                   if (options.hasNextPage(nextPageUrl)) {
-                    resolve(initMultiPage({
-                      ...options,
-                      pageUrl: nextPageUrl
-                    }))
+                    resolve(
+                      initMultiPage({
+                        ...options,
+                        pageUrl: nextPageUrl
+                      })
+                    );
                   } else {
                     console.log("任务完成!");
-                    resolve(imgTotalCount)
+                    resolve(imgTotalCount);
                   }
                 }
               });
@@ -145,20 +73,10 @@ function initMultiPage(options) {
   });
 }
 
-console.log("程序启动");
-
-const tasks = [
-
-  
-];
-
-// http://www.7160.com
-// 该网站是每页一张图片的
-// 地址：http://www.7160.com/meinv/34174/index.html
-// 选择器：.picsbox
-
 const start = async tasks => {
   let imgTotalCount = 0;
+
+  console.log("程序启动");
 
   for (let i = 0; i < tasks.length; i++) {
     try {
@@ -177,12 +95,18 @@ const start = async tasks => {
           //   .find("span")
           //   .next()
           //   .attr("href");
-          if ($("#pages").find('span').next().hasClass('a1')) {
-            return null
+          if (
+            $("#pages")
+              .find("span")
+              .next()
+              .hasClass("a1")
+          ) {
+            return null;
           }
-          href = $("#pages").find('span').next()
+          href = $("#pages")
+            .find("span")
+            .next()
             .attr("href");
-          
 
           if (!href) {
             return null;
@@ -211,4 +135,5 @@ const start = async tasks => {
   console.log(`批量任务完成，共计：${imgTotalCount}张，${tasks.length}个任务`);
 };
 
+const tasks = ["https://www.yeitu.com/meinv/xinggan/20190915_17486.html"];
 start(tasks);
