@@ -1,45 +1,54 @@
-import fs from "fs";
-import cheerio from "cheerio";
-import fsExtra from "fs-extra";
-
-import axios from "./axios";
-import { getFilename, getFilePath, getDirByMultiPage, getCurrPageImgPath, createStream } from './util'
+const fs = require("fs");
+const cheerio = require("cheerio");
+const fsExtra = require("fs-extra");
+var iconv = require("iconv-lite");
+const axios = require("./axios");
+const util = require("./util");
 
 /**
  * 开始
- * @param {Object} options 
+ * @param {Object} options
  */
 function initMultiPage(options) {
   console.log("开始处理页面地址：", options.pageUrl);
   return new Promise(resolve => {
     axios
       .get(options.pageUrl)
-      .then(res => cheerio.load(res.data))
+      .then(res => {
+        if (iconv.decode(res.data, "gb2312").indexOf("�") >= 0) {
+          return cheerio.load(res.data);
+        }
+        return cheerio.load(iconv.decode(res.data, "gb2312"));
+      })
       .then($ => {
         let count = 0;
         // 获取目录
-        const dir = getDirByMultiPage(options.pageUrl, options.mark, $);
+        const dir = util.getDir(util.getPageTitle($, options.pageUrl));
+
+        const params = util.getParams(options.pageUrl);
+
         //  获取上文页面中的图片地址列表
-        const imgPathArr = getCurrPageImgPath(
+        const imgPathArr = util.getCurrPageImgPath(
           $,
-          options.selector,
-          options.attr
+          params.imgsSelector,
+          params.attr,
+          options.pageUrl
         );
         //  当前页面请求数量
         const imgTotalCount = imgPathArr.length;
 
         imgPathArr.map(imgUrl => {
           fsExtra.ensureDir(dir).then(() => {
-            const filepath = getFilePath(dir, imgUrl);
+            const filepath = util.getFilePath(dir, imgUrl);
 
             // 对图片发起请求
             axios.get(imgUrl).then(res => {
               // 将字符串转换成文件流
-              const file = createStream(res.data);
+              const file = util.createStream(res.data);
               file.pipe(fs.createWriteStream(filepath)).on("close", () => {
                 count = count + 1;
                 console.log(
-                  `下载：${getFilename(imgUrl)}, 进度：${parseInt(
+                  `下载：${util.getFilename(imgUrl)}, 进度：${parseInt(
                     (count / imgTotalCount) * 100
                   )}%`
                 );
@@ -50,7 +59,7 @@ function initMultiPage(options) {
                     $,
                     options.pageUrl
                   );
-                  if (options.hasNextPage(nextPageUrl)) {
+                  if (nextPageUrl) {
                     resolve(
                       initMultiPage({
                         ...options,
@@ -63,7 +72,7 @@ function initMultiPage(options) {
                   }
                 }
               });
-            });
+            })
           });
         });
       })
@@ -82,48 +91,10 @@ const start = async tasks => {
     try {
       const res = await initMultiPage({
         pageUrl: tasks[i],
-        selector: ".img_box img",
-        attr: "src",
-        mark: ".",
         // 获取下一页地址
         getNextPageUrl: ($, currentUrl) => {
-          let href = "";
-          const lastIndex = currentUrl.lastIndexOf("/detail");
-          const prefix = currentUrl.substring(0, lastIndex);
-
-          // href = $(".article-paging")
-          //   .find("span")
-          //   .next()
-          //   .attr("href");
-          if (
-            $("#pages")
-              .find("span")
-              .next()
-              .hasClass("a1")
-          ) {
-            return null;
-          }
-          href = $("#pages")
-            .find("span")
-            .next()
-            .attr("href");
-
-          if (!href) {
-            return null;
-          }
-
-          if (href.indexOf("http") === -1) {
-            href = prefix + href;
-          }
+          let href = util.getNextPageURL($, currentUrl);
           return href;
-        },
-        // 结束条件 判断是否还有页面需要请求 hasNextPage
-        hasNextPage: pageUrl => {
-          // 如果地址包含undefind 说明是最没有下一页了
-          if (!pageUrl || pageUrl.indexOf("undefined") !== -1) {
-            return false;
-          }
-          return true;
         }
       });
       imgTotalCount = imgTotalCount + res;
@@ -135,5 +106,7 @@ const start = async tasks => {
   console.log(`批量任务完成，共计：${imgTotalCount}张，${tasks.length}个任务`);
 };
 
-const tasks = ["https://www.yeitu.com/meinv/xinggan/20190915_17486.html"];
+const tasks = [
+  "https://app.fetcherx.com/rss/080de0302bf2b88399fcc15272507581",
+];
 start(tasks);

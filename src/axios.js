@@ -1,4 +1,4 @@
-import axios from "axios";
+const axios = require("axios");
 
 axios.defaults.headers.common["retry"] = 10;
 axios.defaults.headers.common["retryDelay"] = 1000;
@@ -8,6 +8,17 @@ const instance = axios.create({
   timeout: 20000, // 超时时间
   responseType: "arraybuffer"
 });
+
+instance.interceptors.request.use(function (config) {
+  // config.headers["Connection"] = "keep-alive"
+  // config.headers["Cookie"] = "1569577635970"
+  // config.headers["Referer"] = 'http://www.o26.net/XIUREN/8833_34.html'
+  // config.headers["User-Agent"] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36'
+  return config;
+}, function (error) {
+  return Promise.reject(error);
+});
+
 
 // 添加响应拦截器 针对异常情况
 instance.interceptors.response.use(undefined, function axiosRetryInterceptor(
@@ -37,4 +48,4 @@ instance.interceptors.response.use(undefined, function axiosRetryInterceptor(
   });
 });
 
-export default instance;
+module.exports = instance;
