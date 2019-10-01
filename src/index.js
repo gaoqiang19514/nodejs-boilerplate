@@ -11,7 +11,7 @@ const util = require("./util");
  */
 function initMultiPage(options) {
   console.log("开始处理页面地址：", options.pageUrl);
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     axios
       .get(options.pageUrl)
       .then(res => {
@@ -55,17 +55,12 @@ function initMultiPage(options) {
                 if (count === imgTotalCount) {
                   console.log(`当前页面下载完成，共计：${imgTotalCount}张。`);
                   // 当前页面下载完成后 再请求下一页
-                  const nextPageUrl = options.getNextPageUrl(
-                    $,
-                    options.pageUrl
-                  );
+                  const nextPageUrl = options.getNextPageUrl($, options.pageUrl);
                   if (nextPageUrl) {
-                    resolve(
-                      initMultiPage({
-                        ...options,
-                        pageUrl: nextPageUrl
-                      })
-                    );
+                    initMultiPage({
+                      ...options,
+                      pageUrl: nextPageUrl
+                    })
                   } else {
                     console.log("任务完成!");
                     resolve(imgTotalCount);
@@ -73,40 +68,34 @@ function initMultiPage(options) {
                 }
               });
             })
+            .catch(err => reject(err))
           });
         });
       })
-      .catch(err => {
-        console.log("err", err);
-      });
+      .catch(err => reject(err))
   });
 }
 
 const start = async tasks => {
-  let imgTotalCount = 0;
-
+  let count = 0;
   console.log("程序启动");
-
   for (let i = 0; i < tasks.length; i++) {
     try {
       const res = await initMultiPage({
         pageUrl: tasks[i],
         // 获取下一页地址
-        getNextPageUrl: ($, currentUrl) => {
-          let href = util.getNextPageURL($, currentUrl);
-          return href;
-        }
+        getNextPageUrl: util.getNextPageURL
       });
-      imgTotalCount = imgTotalCount + res;
+      count = count + res;
     } catch (err) {
       console.log("err", err);
     }
   }
-
-  console.log(`批量任务完成，共计：${imgTotalCount}张，${tasks.length}个任务`);
+  console.log(`批量任务完成，共计：${count}张，${tasks.length}个任务`);
 };
 
 const tasks = [
-  "https://app.fetcherx.com/rss/080de0302bf2b88399fcc15272507581",
+  "https://www.yeitu.com/meinv/xinggan/20190930_17604.html",
 ];
+
 start(tasks);

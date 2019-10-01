@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "start": "node ./build/index.js",
+    "start": "node ./src/index.js",
+    "test": "node ./src/test.js",
     "build": "./node_modules/.bin/webpack --w --progress --config webpack.config.js"
   },
   "dependencies": {
