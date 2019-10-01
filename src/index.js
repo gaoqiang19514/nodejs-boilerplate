@@ -57,10 +57,10 @@ function initMultiPage(options) {
                   // 当前页面下载完成后 再请求下一页
                   const nextPageUrl = options.getNextPageUrl($, options.pageUrl);
                   if (nextPageUrl) {
-                    initMultiPage({
+                    resolve(initMultiPage({
                       ...options,
                       pageUrl: nextPageUrl
-                    })
+                    }))
                   } else {
                     console.log("任务完成!");
                     resolve(imgTotalCount);
@@ -95,7 +95,7 @@ const start = async tasks => {
 };
 
 const tasks = [
-  "https://www.yeitu.com/meinv/xinggan/20190930_17604.html",
+  "https://www.yeitu.com/meinv/siwameitui/20180913_14706.html"
 ];
 
 start(tasks);
