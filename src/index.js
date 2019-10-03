@@ -5,6 +5,9 @@ var iconv = require("iconv-lite");
 const axios = require("./axios");
 const util = require("./util");
 
+// 下载的目录
+const DOWNLOAD_PATH = "./images";
+
 /**
  * 开始
  * @param {Object} options
@@ -23,7 +26,7 @@ function initMultiPage(options) {
       .then($ => {
         let count = 0;
         // 获取目录
-        const dir = util.getDir(util.getPageTitle($, options.pageUrl));
+        const dir = util.getDir(DOWNLOAD_PATH, util.getPageTitle($, options.pageUrl));
 
         const params = util.getParams(options.pageUrl);
 
