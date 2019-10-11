@@ -7,6 +7,19 @@ const DOWNLOAD_PATH = "./images";
 
 // 各网站的规则映射
 const WEBSITE_SCHEMA = {
+  "www.xsnvshen.com": {
+    imgsSelector: ".gallery .origin_image",
+    attr: "src",
+    nextPage: () => {
+      return false
+    },
+    getPageTitle: $ => {
+      let title = $(".swp-tit.layout h1 a").text();
+      title = title.trim();
+      return title;
+    }
+  },
+
   "www.bobohdy.com": {
     imgsSelector: ".playpic img",
     attr: "src",

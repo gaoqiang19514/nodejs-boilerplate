@@ -1,4 +1,5 @@
 const axios = require("axios");
+const https = require('https')
 
 axios.defaults.headers.common["retry"] = 10;
 axios.defaults.headers.common["retryDelay"] = 1000;
@@ -6,7 +7,12 @@ axios.defaults.headers.common["retryCount"] = 0;
 
 const instance = axios.create({
   timeout: 20000, // 超时时间
-  responseType: "arraybuffer"
+  responseType: "arraybuffer",
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false,
+    requestCert: true,
+    keepAlive: true
+  })
 });
 
 instance.interceptors.request.use(function (config) {

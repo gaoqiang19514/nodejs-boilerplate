@@ -98,7 +98,7 @@ const start = async tasks => {
 };
 
 const tasks = [
-  "https://www.yeitu.com/meinv/siwameitui/20180913_14706.html"
+
 ];
 
 start(tasks);
