@@ -98,7 +98,6 @@ const start = async tasks => {
 };
 
 const tasks = [
-
 ];
 
 start(tasks);

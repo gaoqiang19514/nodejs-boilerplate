@@ -226,12 +226,16 @@ function getCurrPageImgPath($, selector, attr, pageUrl) {
   }
   const imgPathArr = [];
   let urlObj = URL.parse(pageUrl, true);
-
+  // 这里需要处理不同的地址前缀 类似这样https://img.xsnvshen.com/album/22162/31347/003.jpg
   $(selector).each((index, item) => {
     let src = $(item).attr(attr);
-    if (src && src.indexOf("http") === -1) {
-      src = "http://" + urlObj.host + src;
+    if (urlObj.host === 'www.xsnvshen.com') {
+      src = "http:" + src;
+      src = src.replace('/thumb_600x900/', '/')
+    } else if (src && src.indexOf("http") === -1) {
+      src = "http://" + src;
     }
+
     imgPathArr.push(src);
   });
   return imgPathArr;
