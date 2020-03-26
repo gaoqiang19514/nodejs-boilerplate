@@ -26,7 +26,10 @@ function initMultiPage(options) {
       .then($ => {
         let count = 0;
         // 获取目录
-        const dir = util.getDir(DOWNLOAD_PATH, util.getPageTitle($, options.pageUrl));
+        const dir = util.getDir(
+          DOWNLOAD_PATH,
+          util.getPageTitle($, options.pageUrl)
+        );
 
         const params = util.getParams(options.pageUrl);
 
@@ -45,37 +48,44 @@ function initMultiPage(options) {
             const filepath = util.getFilePath(dir, imgUrl);
 
             // 对图片发起请求
-            axios.get(imgUrl).then(res => {
-              // 将字符串转换成文件流
-              const file = util.createStream(res.data);
-              file.pipe(fs.createWriteStream(filepath)).on("close", () => {
-                count = count + 1;
-                console.log(
-                  `下载：${util.getFilename(imgUrl)}, 进度：${parseInt(
-                    (count / imgTotalCount) * 100
-                  )}%`
-                );
-                if (count === imgTotalCount) {
-                  console.log(`当前页面下载完成，共计：${imgTotalCount}张。`);
-                  // 当前页面下载完成后 再请求下一页
-                  const nextPageUrl = options.getNextPageUrl($, options.pageUrl);
-                  if (nextPageUrl) {
-                    resolve(initMultiPage({
-                      ...options,
-                      pageUrl: nextPageUrl
-                    }))
-                  } else {
-                    console.log("任务完成!");
-                    resolve(imgTotalCount);
+            axios
+              .get(imgUrl)
+              .then(res => {
+                // 将字符串转换成文件流
+                const file = util.createStream(res.data);
+                file.pipe(fs.createWriteStream(filepath)).on("close", () => {
+                  count = count + 1;
+                  console.log(
+                    `下载：${util.getFilename(imgUrl)}, 进度：${parseInt(
+                      (count / imgTotalCount) * 100
+                    )}%`
+                  );
+                  if (count === imgTotalCount) {
+                    console.log(`当前页面下载完成，共计：${imgTotalCount}张。`);
+                    // 当前页面下载完成后 再请求下一页
+                    const nextPageUrl = options.getNextPageUrl(
+                      $,
+                      options.pageUrl
+                    );
+                    if (nextPageUrl) {
+                      resolve(
+                        initMultiPage({
+                          ...options,
+                          pageUrl: nextPageUrl
+                        })
+                      );
+                    } else {
+                      console.log("任务完成!");
+                      resolve(imgTotalCount);
+                    }
                   }
-                }
-              });
-            })
-            .catch(err => reject(err))
+                });
+              })
+              .catch(err => reject(err));
           });
         });
       })
-      .catch(err => reject(err))
+      .catch(err => reject(err));
   });
 }
 
@@ -97,7 +107,14 @@ const start = async tasks => {
   console.log(`批量任务完成，共计：${count}张，${tasks.length}个任务`);
 };
 
-const tasks = [
-];
+const tasks = [];
 
-start(tasks);
+// start(tasks);
+const dirents = fs.readdirSync("C:/Users/Administrator/Desktop/待下载壁纸", {
+  withFileTypes: true
+});
+const res = dirents.map(item => {
+  console.log(item.toString());
+  return item.isSymbolicLink() ? fs.readlinkSync(item.name) : "no link";
+});
+console.log("res", res);
