@@ -48,31 +48,33 @@ function requestImg($, imgPathList, dir, taskUrl, done) {
  * 开始
  * @param {String} taskUrl
  */
-function main(taskUrl, callback) {
+function main(taskUrl) {
   console.log("开始处理页面地址：", taskUrl);
-  axios
-    .get(taskUrl)
-    .then(res => cheerio.load(util.decode(res.data)))
-    .then($ => {
-      // 获取目录
-      const dir = util.getDir(DOWNLOAD_PATH, util.getTitle($, taskUrl));
+  return new Promise(resolve => {
+    axios
+      .get(taskUrl)
+      .then(res => cheerio.load(util.decode(res.data)))
+      .then($ => {
+        // 获取目录
+        const dir = util.getDir(DOWNLOAD_PATH, util.getTitle($, taskUrl));
 
-      const params = util.getParams(taskUrl);
+        const params = util.getParams(taskUrl);
 
-      //  获取页面中图片地址列表
-      const imgPathList = util.getCurrPageImgPath(
-        $,
-        params.imgsSelector,
-        params.attr,
-        taskUrl
-      );
+        //  获取页面中图片地址列表
+        const imgPathList = util.getCurrPageImgPath(
+          $,
+          params.imgsSelector,
+          params.attr,
+          taskUrl
+        );
 
-      let taskCount = 0;
-      requestImg($, imgPathList, dir, taskUrl, () => {
-        taskCount++;
-        callback(taskCount);
+        let taskCount = 0;
+        requestImg($, imgPathList, dir, taskUrl, () => {
+          taskCount++;
+          resolve(taskCount);
+        });
       });
-    });
+  });
 }
 
 /**
@@ -83,11 +85,10 @@ async function start(tasks) {
   const taskCount = tasks.length;
 
   for (const task of tasks) {
-    await main(task, doneTaskCount => {
-      if (taskCount === doneTaskCount) {
-        console.log("任务完成");
-      }
-    });
+    const doneTaskCount = await main(task);
+    if (taskCount === doneTaskCount) {
+      console.log("任务完成");
+    }
   }
 
   // console.log("\n");
