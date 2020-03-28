@@ -1,5 +1,6 @@
 const URL = require("url");
 const path = require("path");
+const iconv = require("iconv-lite");
 const Readable = require("stream").Readable;
 
 // 下载的目录
@@ -11,168 +12,12 @@ const WEBSITE_SCHEMA = {
     imgsSelector: ".gallery .origin_image",
     attr: "src",
     nextPage: () => {
-      return false
-    },
-    getPageTitle: $ => {
-      let title = $(".swp-tit.layout h1 a").text();
-      title = title.trim();
-      return title;
-    }
-  },
-
-  "www.bobohdy.com": {
-    imgsSelector: ".playpic img",
-    attr: "src",
-    nextPage: ($, currentUrl) => {
-      let next = false;
-      let nextPageUrl = "";
-      let currentIndex = 0;
-      // 很可能当前页面是动态加载的 所以无法通过获取高亮class来知道当前是在哪个页面
-      // 暂时只能用当前页面的地址 到页面中去遍历了
-      let pages = $("ul.dslist-group").children();
-
-      pages.each((index, item) => {
-        let href = $(item)
-          .find("a")
-          .attr("href");
-        if (currentUrl.indexOf(href) !== -1) {
-          currentIndex = index;
-          return false;
-        }
-      });
-
-      try {
-        next = pages.eq(currentIndex + 1);
-      } catch (err) {
-        return false;
-      }
-
-      nextPageUrl = $(next)
-        .find("a")
-        .attr("href");
-
-      if (nextPageUrl && nextPageUrl.indexOf("http") === -1) {
-        const prefix = getUrlPrefix(currentUrl, "/play");
-        nextPageUrl = prefix + nextPageUrl;
-      }
-
-      if (isUrl(nextPageUrl)) {
-        return nextPageUrl;
-      }
       return false;
     },
-    getPageTitle: $ => {
-      let title = $(".movie-title").text();
-      const lastIndex = title.lastIndexOf("-");
-      title = title.substring(0, lastIndex).trim();
-      return title;
-    }
-  },
-
-  "www.7160.com": {
-    imgsSelector: ".picsbox img",
-    attr: "src",
-    nextPage: ($, currentUrl) => {
-      let nextPageUrl = $(".itempage")
-        .children(".current")
-        .next()
-        .attr("href");
-
-      if (nextPageUrl === "#") {
-        return false;
-      }
-
-      if (nextPageUrl && nextPageUrl.indexOf("http") === -1) {
-        const prefix = getUrlPrefix(currentUrl, "/");
-        nextPageUrl = prefix + "/" + nextPageUrl;
-      }
-
-      if (isUrl(nextPageUrl)) {
-        return nextPageUrl;
-      }
-      return false;
-    },
-    getPageTitle: $ => {
-      let title = $(".picmainer h1").text();
-      const lastIndex = title.lastIndexOf("(");
-      if (lastIndex !== -1) {
-        title = title.substring(0, lastIndex).trim();
-      }
-      return title;
-    }
-  },
-
-  "www.yeitu.com": {
-    imgsSelector: ".img_box img",
-    attr: "src",
-    nextPage: ($, currentUrl) => {
-      if (
-        $("#pages")
-          .children("span")
-          .next()
-          .hasClass("a1")
-      ) {
-        return false;
-      }
-
-      let nextPageUrl = $("#pages")
-        .children("span")
-        .next()
-        .attr("href");
-
-      return nextPageUrl;
-    },
-    getPageTitle: $ => {
-      let title = $("#title h1").text();
-      return title;
-    }
-  },
-
-  "www.ligui.org": {
-    imgsSelector: ".article-content img",
-    attr: "src",
-    nextPage: ($, currentUrl) => {
-      let nextPageUrl = $(".article-paging")
-        .children("span")
-        .next()
-        .attr("href");
-      console.log("www.ligui.org nextPageUrl", nextPageUrl);
-
-      if (isUrl(nextPageUrl)) {
-        return nextPageUrl;
-      }
-      return false;
-    },
-    getPageTitle: $ => {
-      let title = $(".article-title").text();
-      return title;
-    }
-  },
-
-  "www.baituji.com": {
-    imgsSelector: "#show-area-height img",
-    attr: "src",
-    nextPage: ($, currentUrl) => {
-      let nextPageUrl = $(".pagination")
-        .children(".active")
-        .next()
-        .find("a")
-        .attr("href");
-
-      if (nextPageUrl && nextPageUrl.indexOf("http") === -1) {
-        const prefix = getUrlPrefix(currentUrl, "/detail");
-        nextPageUrl = prefix + nextPageUrl;
-      }
-
-      if (isUrl(nextPageUrl)) {
-        return nextPageUrl;
-      }
-      return false;
-    },
-    getPageTitle: $ => {
-      let title = $("title").text();
-      return title;
-    }
+    getTitle: $ =>
+      $(".swp-tit.layout h1 a")
+        .text()
+        .trim()
   }
 };
 
@@ -215,8 +60,8 @@ function getDir(dir, title) {
 }
 
 /**
- * 现将图片链接收到到数组中
- * @param {Cheerio Objecjt} $
+ * 先将图片链接收集到数组中
+ * @param {Cheerio} $
  * @param {String} selector
  * @param {String} attr
  */
@@ -229,9 +74,9 @@ function getCurrPageImgPath($, selector, attr, pageUrl) {
   // 这里需要处理不同的地址前缀 类似这样https://img.xsnvshen.com/album/22162/31347/003.jpg
   $(selector).each((index, item) => {
     let src = $(item).attr(attr);
-    if (urlObj.host === 'www.xsnvshen.com') {
+    if (urlObj.host === "www.xsnvshen.com") {
       src = "http:" + src;
-      src = src.replace('/thumb_600x900/', '/')
+      src = src.replace("/thumb_600x900/", "/");
     } else if (src && src.indexOf("http") === -1) {
       src = "http://" + src;
     }
@@ -282,32 +127,31 @@ function getUrlPrefix(url, prefixPosition) {
 }
 
 /**
- * 获取指定网站的标题 
- * @param {Object} $ 
- * @param {String} url 
+ * 获取指定网站的标题
+ * @param {Object} $
+ * @param {String} url
  */
-function getPageTitle($, url) {
+function getTitle($, url) {
   let urlObj = URL.parse(url, true);
   const website = WEBSITE_SCHEMA[urlObj.host];
-  return website.getPageTitle($);
+  return website.getTitle($);
 }
 
 /**
  * 获取下一页的函数
- * @param {Object} $ 
- * @param {String} url 
+ * @param {Object} $
+ * @param {String} url
  */
 function getNextPageURL($, url) {
   let urlObj = URL.parse(url, true);
   const website = WEBSITE_SCHEMA[urlObj.host];
-  let nextPageUrl = website.nextPage($, url);
-  return nextPageUrl;
+  return website.nextPage($, url);
 }
 
 /**
  * 获取指定网站的参数配置
- * @param {Object} $ 
- * @param {String} url 
+ * @param {Object} $
+ * @param {String} url
  */
 function getParams(url) {
   let urlObj = URL.parse(url, true);
@@ -318,15 +162,40 @@ function getParams(url) {
   };
 }
 
+/**
+ * 从字符串中获取http地址
+ * @param {String} str
+ */
+function getURL(str) {
+  if (!str) {
+    return "";
+  }
+  return str.match(/http.*?\s/g)[0].replace("\r", "");
+}
+
+/**
+ * 解码
+ * @param {Object} data
+ */
+function decode(data) {
+  const decodeData = iconv.decode(data, "gb2312");
+  if (decodeData.indexOf("�") < 0) {
+    return decodeData;
+  }
+  return data;
+}
+
 module.exports = {
   isUrl,
+  decode,
   getDir,
+  getURL,
   getParams,
   getFilename,
   getFilePath,
   getUrlPrefix,
-  getPageTitle,
+  getTitle,
   createStream,
   getNextPageURL,
   getCurrPageImgPath
-}
+};

@@ -48,7 +48,7 @@ instance.interceptors.response.use(undefined, function axiosRetryInterceptor(
 
   return new Promise(resolve => {
     setTimeout(async () => {
-      console.warn(`请求失败，重试 ${config.url}`);
+      // console.warn(`请求失败，重试 ${config.url}`);
       resolve(await instance.request(config));
     }, config.headers.retryDelay || 1);
   });
