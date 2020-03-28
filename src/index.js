@@ -1,10 +1,11 @@
 const fs = require("fs");
+const URL = require("url");
 const path = require("path");
 const cheerio = require("cheerio");
 const fsExtra = require("fs-extra");
-const axios = require("./axios");
+
 const util = require("./util");
-const URL = require("url");
+const axios = require("./axios");
 
 // 下载的目录
 const DOWNLOAD_PATH = "./images";
@@ -32,9 +33,10 @@ function download(imgURL, filePath) {
  * @param {Array} imgPathList
  * @param {String} dir
  */
-async function requestImg(imgPathList, dir) {
-  await fsExtra.ensureDir(dir);
+async function requestImages(imgPathList, dir) {
   const promises = [];
+
+  await fsExtra.ensureDir(dir);
 
   imgPathList.map(imgURL => {
     const filePath = util.getFilePath(dir, imgURL);
@@ -50,24 +52,30 @@ async function requestImg(imgPathList, dir) {
  */
 async function main(taskUrl) {
   console.log("开始处理页面地址：", taskUrl);
+
+  // 读取页面
   const { data } = await axios.get(taskUrl);
-
+  // 将页面加载为cheerio对象
   const $ = cheerio.load(util.decode(data));
-
   // 获取目录
   const dir = util.getDir(DOWNLOAD_PATH, util.getTitle($, taskUrl));
-
+  // 获取网站的配置参数
   const params = util.getParams(taskUrl);
-
   //  获取页面中图片地址列表
-  const imgPathList = util.getCurrPageImgPath(
+  const imgPathList = util.getPageImgPath({
     $,
-    params.imgsSelector,
-    params.attr,
-    URL.parse(taskUrl, true)
-  );
+    attr: params.attr,
+    selector: params.selector,
+    host: URL.parse(taskUrl, true)
+  });
 
-  return requestImg(imgPathList, dir);
+  // 读取是否有下一页
+  // const nextPage = util.getNextPage($, taskUrl);
+  // if (nextPage) {
+  //   main(nextPage)
+  // }
+
+  return requestImages(imgPathList, dir);
 }
 
 /**
@@ -78,7 +86,7 @@ async function start(tasks) {
   for (const task of tasks) {
     try {
       const res = await main(task);
-      console.log(`${tasks}下载完成`)
+      console.log(`${tasks}下载完成`);
     } catch (err) {
       console.log("err", err);
     }
@@ -107,5 +115,5 @@ function getURLList() {
 }
 
 start(getURLList()).then(res => {
-  console.log('所有任务完成')
+  console.log("所有任务完成");
 });

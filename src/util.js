@@ -3,17 +3,23 @@ const path = require("path");
 const iconv = require("iconv-lite");
 const Readable = require("stream").Readable;
 
-// 下载的目录
-const DOWNLOAD_PATH = "./images";
-
 // 各网站的规则映射
 const WEBSITE_SCHEMA = {
   "www.xsnvshen.com": {
-    imgsSelector: ".gallery .origin_image",
+    selector: ".gallery .origin_image",
     attr: "src",
     nextPage: () => {
       return false;
     },
+    getTitle: $ =>
+      $("title")
+        .text()
+        .trim()
+  },
+  "www.nvshens.net": {
+    attr: "src",
+    selector: "#hgallery img",
+    nextPage: $ => $("#pages a:last-child").attr("href"),
     getTitle: $ =>
       $("title")
         .text()
@@ -62,14 +68,17 @@ function getDir(dir, title) {
 /**
  * 先将图片链接收集到数组中
  * @param {Cheerio} $
- * @param {String} selector
  * @param {String} attr
+ * @param {String} selector
+ * @param {String} host
  */
-function getCurrPageImgPath($, selector, attr, host) {
-  if (!attr) {
-    return null;
+function getPageImgPath({ $, attr, selector, host }) {
+  const imgPathList = [];
+
+  if (!$ || !attr || !selector || !host) {
+    return [];
   }
-  const imgPathArr = [];
+
   // 这里需要处理不同的地址前缀 类似这样https://img.xsnvshen.com/album/22162/31347/003.jpg
   $(selector).each((index, item) => {
     let src = $(item).attr(attr);
@@ -80,9 +89,10 @@ function getCurrPageImgPath($, selector, attr, host) {
       src = "http:" + src;
     }
 
-    imgPathArr.push(src);
+    imgPathList.push(src);
   });
-  return imgPathArr;
+
+  return imgPathList;
 }
 
 /**
@@ -131,6 +141,7 @@ function getUrlPrefix(url, prefixPosition) {
  * @param {String} url
  */
 function getTitle($, url) {
+  console.log("url", url);
   let urlObj = URL.parse(url, true);
   const website = WEBSITE_SCHEMA[urlObj.host];
   return website.getTitle($);
@@ -141,7 +152,7 @@ function getTitle($, url) {
  * @param {Object} $
  * @param {String} url
  */
-function getNextPageURL($, url) {
+function getNextPage($, url) {
   let urlObj = URL.parse(url, true);
   const website = WEBSITE_SCHEMA[urlObj.host];
   return website.nextPage($, url);
@@ -156,7 +167,7 @@ function getParams(url) {
   let urlObj = URL.parse(url, true);
   const website = WEBSITE_SCHEMA[urlObj.host];
   return {
-    imgsSelector: website.imgsSelector,
+    selector: website.selector,
     attr: website.attr
   };
 }
@@ -195,6 +206,6 @@ module.exports = {
   getUrlPrefix,
   getTitle,
   createStream,
-  getNextPageURL,
-  getCurrPageImgPath
+  getNextPage,
+  getPageImgPath
 };
