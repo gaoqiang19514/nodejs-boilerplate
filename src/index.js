@@ -4,6 +4,7 @@ const fsExtra = require("fs-extra");
 var iconv = require("iconv-lite");
 const axios = require("./axios");
 const util = require("./util");
+const path = require("path");
 
 // 下载的目录
 const DOWNLOAD_PATH = "./images";
@@ -107,14 +108,27 @@ const start = async tasks => {
   console.log(`批量任务完成，共计：${count}张，${tasks.length}个任务`);
 };
 
-const tasks = [];
+function getURL(str) {
+  if (!str) {
+    return "";
+  }
+  // https://www.nvshens.net/g/31933/3.html
+  return str.match(/http.*?\s/g)[0].replace("\r", "");
+}
 
-// start(tasks);
-const dirents = fs.readdirSync("C:/Users/Administrator/Desktop/待下载壁纸", {
-  withFileTypes: true
-});
-const res = dirents.map(item => {
-  console.log(item.toString());
-  return item.isSymbolicLink() ? fs.readlinkSync(item.name) : "no link";
-});
-console.log("res", res);
+function getURLList() {
+  const dir = "C:/Users/Administrator/Desktop/待下载壁纸";
+
+  const files = fs.readdirSync(dir);
+
+  const filePathPool = files.map(filename => path.join(dir, filename));
+
+  const URLList = filePathPool.map(filePath => {
+    const str = fs.readFileSync(filePath, "utf8");
+    return getURL(str);
+  });
+
+  return URLList;
+}
+
+start(getURLList());
