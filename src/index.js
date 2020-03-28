@@ -4,77 +4,70 @@ const cheerio = require("cheerio");
 const fsExtra = require("fs-extra");
 const axios = require("./axios");
 const util = require("./util");
+const URL = require("url");
 
 // 下载的目录
 const DOWNLOAD_PATH = "./images";
+
+function download(imgURL, filePath) {
+  return new Promise((resolve, reject) => {
+    // 对图片发起请求
+    axios
+      .get(imgURL)
+      .then(res => {
+        // 将字符串转换成文件流
+        const file = util.createStream(res.data);
+        // 保存文件到filePath中
+        file.pipe(fs.createWriteStream(filePath)).on("close", () => {
+          // 图片下载完成
+          resolve(filePath);
+        });
+      })
+      .catch(err => reject(err));
+  });
+}
 
 /**
  * 下载图片
  * @param {Array} imgPathList
  * @param {String} dir
- * @param {String} taskUrl
  */
-function requestImg($, imgPathList, dir, taskUrl, done) {
-  fsExtra.ensureDir(dir).then(() => {
-    let imgTotalCount = imgPathList.length;
-    let imgCount = 0;
-    imgPathList.map(imgUrl => {
-      const filePath = util.getFilePath(dir, imgUrl);
+async function requestImg(imgPathList, dir) {
+  await fsExtra.ensureDir(dir);
+  const promises = [];
 
-      // 对图片发起请求
-      axios.get(imgUrl).then(res => {
-        // 将字符串转换成文件流
-        const file = util.createStream(res.data);
-        // 保存文件到filePath中
-        file.pipe(fs.createWriteStream(filePath)).on("close", () => {
-          imgCount++;
-          if (imgCount === imgTotalCount) {
-            // 当前页面下载完成
-            done();
-          }
-        });
-
-        // 请求下一页
-        // const nextPageUrl = util.getNextPageURL($, taskUrl);
-        // if (nextPageUrl) {
-        //   main(nextPageUrl);
-        // }
-      });
-    });
+  imgPathList.map(imgURL => {
+    const filePath = util.getFilePath(dir, imgURL);
+    promises.push(download(imgURL, filePath));
   });
+
+  return Promise.all(promises);
 }
 
 /**
  * 开始
  * @param {String} taskUrl
  */
-function main(taskUrl) {
+async function main(taskUrl) {
   console.log("开始处理页面地址：", taskUrl);
-  return new Promise(resolve => {
-    axios
-      .get(taskUrl)
-      .then(res => cheerio.load(util.decode(res.data)))
-      .then($ => {
-        // 获取目录
-        const dir = util.getDir(DOWNLOAD_PATH, util.getTitle($, taskUrl));
+  const { data } = await axios.get(taskUrl);
 
-        const params = util.getParams(taskUrl);
+  const $ = cheerio.load(util.decode(data));
 
-        //  获取页面中图片地址列表
-        const imgPathList = util.getCurrPageImgPath(
-          $,
-          params.imgsSelector,
-          params.attr,
-          taskUrl
-        );
+  // 获取目录
+  const dir = util.getDir(DOWNLOAD_PATH, util.getTitle($, taskUrl));
 
-        let taskCount = 0;
-        requestImg($, imgPathList, dir, taskUrl, () => {
-          taskCount++;
-          resolve(taskCount);
-        });
-      });
-  });
+  const params = util.getParams(taskUrl);
+
+  //  获取页面中图片地址列表
+  const imgPathList = util.getCurrPageImgPath(
+    $,
+    params.imgsSelector,
+    params.attr,
+    URL.parse(taskUrl, true)
+  );
+
+  return requestImg(imgPathList, dir);
 }
 
 /**
@@ -82,12 +75,12 @@ function main(taskUrl) {
  * @param {Array} tasks
  */
 async function start(tasks) {
-  const taskCount = tasks.length;
-
   for (const task of tasks) {
-    const doneTaskCount = await main(task);
-    if (taskCount === doneTaskCount) {
-      console.log("任务完成");
+    try {
+      const res = await main(task);
+      console.log(`${tasks}下载完成`)
+    } catch (err) {
+      console.log("err", err);
     }
   }
 
@@ -104,17 +97,15 @@ async function start(tasks) {
  */
 function getURLList() {
   const dir = "C:/Users/Administrator/Desktop/待下载壁纸";
-
   const files = fs.readdirSync(dir);
-
   const filePathList = files.map(filename => path.join(dir, filename));
 
-  const URLList = filePathList.map(filePath => {
+  return filePathList.map(filePath => {
     const str = fs.readFileSync(filePath, "utf8");
     return util.getURL(str);
   });
-
-  return URLList;
 }
 
-start(getURLList());
+start(getURLList()).then(res => {
+  console.log('所有任务完成')
+});

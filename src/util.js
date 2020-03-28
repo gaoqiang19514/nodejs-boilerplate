@@ -15,7 +15,7 @@ const WEBSITE_SCHEMA = {
       return false;
     },
     getTitle: $ =>
-      $(".swp-tit.layout h1 a")
+      $("title")
         .text()
         .trim()
   }
@@ -65,20 +65,19 @@ function getDir(dir, title) {
  * @param {String} selector
  * @param {String} attr
  */
-function getCurrPageImgPath($, selector, attr, pageUrl) {
+function getCurrPageImgPath($, selector, attr, host) {
   if (!attr) {
     return null;
   }
   const imgPathArr = [];
-  let urlObj = URL.parse(pageUrl, true);
   // 这里需要处理不同的地址前缀 类似这样https://img.xsnvshen.com/album/22162/31347/003.jpg
   $(selector).each((index, item) => {
     let src = $(item).attr(attr);
-    if (urlObj.host === "www.xsnvshen.com") {
+    if (host === "www.xsnvshen.com") {
       src = "http:" + src;
       src = src.replace("/thumb_600x900/", "/");
     } else if (src && src.indexOf("http") === -1) {
-      src = "http://" + src;
+      src = "http:" + src;
     }
 
     imgPathArr.push(src);
