@@ -79,7 +79,7 @@ async function main(taskUrl) {
 
 // 启动程序
 async function startup() {
-  const tasks = getURLList("C:/Users/Administrator/Desktop/待下载壁纸");
+  const tasks = util.getURLList("C:/Users/Administrator/Desktop/待下载壁纸");
 
   if (!tasks && !tasks.length) {
     console.log("未发现可供运行的任务。");

@@ -1,3 +1,4 @@
+const fs = require("fs");
 const URL = require("url");
 const path = require("path");
 const iconv = require("iconv-lite");
@@ -204,7 +205,7 @@ function getURLList(dir) {
 
   return filePathList.map(filePath => {
     const str = fs.readFileSync(filePath, "utf8");
-    return util.getURL(str);
+    return getURL(str);
   });
 }
 
