@@ -1,6 +1,5 @@
 const fs = require("fs");
 const URL = require("url");
-const path = require("path");
 const cheerio = require("cheerio");
 const fsExtra = require("fs-extra");
 
@@ -78,11 +77,15 @@ async function main(taskUrl) {
   return requestImages(imgPathList, dir);
 }
 
-/**
- * 启动程序
- * @param {Array} tasks
- */
-async function start(tasks) {
+// 启动程序
+async function startup() {
+  const tasks = getURLList("C:/Users/Administrator/Desktop/待下载壁纸");
+
+  if (!tasks && !tasks.length) {
+    console.log("未发现可供运行的任务。");
+    return;
+  }
+
   for (const task of tasks) {
     try {
       const res = await main(task);
@@ -92,28 +95,7 @@ async function start(tasks) {
     }
   }
 
-  // console.log("\n");
-  // console.log("任务信息：");
-  // console.log(`- ${tasks.length}个任务`);
-  // console.log(`- ${tasks.length - failCount}个成功`);
-  // console.log(`- ${failCount}个失败`);
-  // console.log(`- ${imgTotalCount}张图片`);
-}
-
-/**
- * 获取指定目录内.url文件的地址列表
- */
-function getURLList() {
-  const dir = "C:/Users/Administrator/Desktop/待下载壁纸";
-  const files = fs.readdirSync(dir);
-  const filePathList = files.map(filename => path.join(dir, filename));
-
-  return filePathList.map(filePath => {
-    const str = fs.readFileSync(filePath, "utf8");
-    return util.getURL(str);
-  });
-}
-
-start(getURLList()).then(res => {
   console.log("所有任务完成");
-});
+}
+
+startup();

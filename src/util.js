@@ -195,12 +195,26 @@ function decode(data) {
   return data;
 }
 
+/**
+ * 获取指定目录内.url文件的地址列表
+ */
+function getURLList(dir) {
+  const files = fs.readdirSync(dir);
+  const filePathList = files.map(filename => path.join(dir, filename));
+
+  return filePathList.map(filePath => {
+    const str = fs.readFileSync(filePath, "utf8");
+    return util.getURL(str);
+  });
+}
+
 module.exports = {
   isUrl,
   decode,
   getDir,
   getURL,
   getParams,
+  getURLList,
   getFilename,
   getFilePath,
   getUrlPrefix,
